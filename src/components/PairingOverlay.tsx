@@ -1,0 +1,135 @@
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "motion/react";
+import { Bluetooth, BluetoothSearching, BluetoothConnected, X, Wifi, WifiOff } from "lucide-react";
+
+interface PairingOverlayProps {
+  onPair: (code: string) => void;
+  isSender: boolean;
+  onClose: () => void;
+  type: "bluetooth" | "wifi";
+}
+
+export const PairingOverlay = ({ onPair, isSender, onClose, type }: PairingOverlayProps) => {
+  const [code, setCode] = useState("");
+  const [generatedCode, setGeneratedCode] = useState("");
+  const [isScanning, setIsScanning] = useState(false);
+
+  const isWifi = type === "wifi";
+
+  useEffect(() => {
+    if (isSender) {
+      const newCode = Math.floor(1000 + Math.random() * 9000).toString();
+      setGeneratedCode(newCode);
+      onPair(newCode);
+    }
+  }, [isSender]);
+
+  const handleScan = () => {
+    setIsScanning(true);
+    setTimeout(() => {
+      setIsScanning(false);
+    }, 3000);
+  };
+
+  const handleConnect = () => {
+    if (code.length === 4) {
+      onPair(code);
+    }
+  };
+
+  const Icon = isWifi ? Wifi : Bluetooth;
+  const SearchingIcon = isWifi ? Wifi : BluetoothSearching;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4"
+    >
+      <div className="relative w-full max-w-md wood-panel p-8 rounded-lg border-4 border-[#2a1a1a] shadow-[0_0_50px_rgba(0,0,0,1)]">
+        <div className="absolute inset-0 wallpaper pointer-events-none opacity-10" />
+        
+        <button 
+          onClick={onClose}
+          className="absolute top-4 right-4 text-[#ff2200] hover:scale-110 transition-transform"
+        >
+          <X size={24} />
+        </button>
+
+        <div className="relative z-10 flex flex-col items-center gap-8">
+          <div className="flex items-center gap-4">
+            {isScanning ? (
+              <SearchingIcon className="text-[#ff2200] animate-pulse" size={48} />
+            ) : (
+              <Icon className="text-[#ff2200]" size={48} />
+            )}
+            <h2 className="text-[#ff2200] font-creepster text-4xl tracking-widest flicker">
+              {isSender ? (isWifi ? "WIFI HOTSPOT" : "BROADCASTING") : (isWifi ? "WIFI SCAN" : "SCANNING")}
+            </h2>
+          </div>
+
+          <p className="text-center text-[#fff8e0]/60 font-mono text-sm">
+            {isSender 
+              ? `ESTABLISHING SECURE ${isWifi ? "WIFI" : "BT"} FREQUENCY FOR NEARBY RECEIVERS...` 
+              : `SEARCHING FOR NEARBY ${isWifi ? "WIFI" : "BT"} TRANSMISSION FREQUENCIES...`}
+          </p>
+
+          {isSender ? (
+            <div className="flex flex-col items-center gap-4">
+              <div className="text-6xl font-mono tracking-[0.5em] text-[#ff2200] drop-shadow-[0_0_10px_rgba(255,34,0,0.5)]">
+                {generatedCode}
+              </div>
+              <span className="text-xs opacity-40 uppercase tracking-widest">{isWifi ? "WIFI NETWORK ID" : "Frequency ID"}</span>
+            </div>
+          ) : (
+            <div className="w-full flex flex-col gap-6">
+              {!isScanning ? (
+                <>
+                  <input
+                    type="text"
+                    maxLength={4}
+                    value={code}
+                    onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+                    placeholder={isWifi ? "ENTER WIFI PASSCODE" : "ENTER FREQUENCY ID"}
+                    className="w-full bg-black/50 border-2 border-[#3a2a1a] p-4 text-center text-4xl font-mono tracking-[0.5em] text-[#ff2200] focus:outline-none focus:border-[#ff2200] transition-colors"
+                  />
+                  <button
+                    onClick={handleConnect}
+                    disabled={code.length !== 4}
+                    className="w-full py-4 bg-[#ff2200] text-black font-creepster text-2xl tracking-widest rounded hover:bg-[#ff4400] transition-colors disabled:opacity-30"
+                  >
+                    CONNECT
+                  </button>
+                </>
+              ) : (
+                <div className="flex flex-col items-center gap-4 py-8">
+                  <div className="w-full h-1 bg-[#1a1208] relative overflow-hidden">
+                    <motion.div
+                      animate={{ left: ["-100%", "100%"] }}
+                      transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
+                      className="absolute top-0 bottom-0 w-1/2 bg-[#ff2200] shadow-[0_0_10px_#ff2200]"
+                    />
+                  </div>
+                  <span className="text-xs opacity-40 uppercase tracking-widest">{isWifi ? "Authenticating with the Upside Down..." : "Syncing with the void..."}</span>
+                </div>
+              )}
+              
+              <button
+                onClick={handleScan}
+                className="text-[#ff2200]/60 hover:text-[#ff2200] text-xs uppercase tracking-widest transition-colors"
+              >
+                {isScanning ? "Scanning..." : "Refresh Scan"}
+              </button>
+            </div>
+          )}
+
+          <div className="flex items-center gap-2 text-[10px] opacity-20 font-mono">
+            {isWifi ? <Wifi size={12} /> : <BluetoothConnected size={12} />}
+            <span>{isWifi ? "WIFI DIRECT (802.11) SIMULATION ACTIVE" : "BLUETOOTH LOW ENERGY (BLE) SIMULATION ACTIVE"}</span>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
