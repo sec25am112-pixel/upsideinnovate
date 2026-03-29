@@ -8,9 +8,11 @@ interface PairingOverlayProps {
   isSender: boolean;
   onClose: () => void;
   type: "bluetooth" | "wifi";
+  isConnecting: boolean;
+  error: string | null;
 }
 
-export const PairingOverlay = ({ onPair, isSender, onClose, type }: PairingOverlayProps) => {
+export const PairingOverlay = ({ onPair, isSender, onClose, type, isConnecting, error }: PairingOverlayProps) => {
   const [code, setCode] = useState("");
   const [generatedCode, setGeneratedCode] = useState("");
   const [isScanning, setIsScanning] = useState(false);
@@ -47,6 +49,8 @@ export const PairingOverlay = ({ onPair, isSender, onClose, type }: PairingOverl
       // For this demo, we'll just simulate a successful scan if the user "finds" it
       setIsScanning(false);
       setShowQrScanner(false);
+      // We don't have the actual code here, so we'll just mock it for the demo
+      onPair("1234"); 
     }, 4000);
   };
 
@@ -72,21 +76,33 @@ export const PairingOverlay = ({ onPair, isSender, onClose, type }: PairingOverl
 
         <div className="relative z-10 flex flex-col items-center gap-6">
           <div className="flex items-center gap-4">
-            {isScanning ? (
+            {isScanning || isConnecting ? (
               <SearchingIcon className="text-[#ff2200] animate-pulse" size={40} />
             ) : (
               <Icon className="text-[#ff2200]" size={40} />
             )}
             <h2 className="text-[#ff2200] font-creepster text-3xl tracking-widest flicker">
-              {isSender ? (isWifi ? "WIFI HOTSPOT" : "BROADCASTING") : (isWifi ? "WIFI SCAN" : "SCANNING")}
+              {isConnecting ? "CONNECTING..." : (isSender ? (isWifi ? "WIFI HOTSPOT" : "BROADCASTING") : (isWifi ? "WIFI SCAN" : "SCANNING"))}
             </h2>
           </div>
 
           <p className="text-center text-[#fff8e0]/60 font-mono text-xs">
-            {isSender 
-              ? `ESTABLISHING SECURE ${isWifi ? "WIFI" : "BT"} FREQUENCY FOR NEARBY RECEIVERS...` 
-              : `SEARCHING FOR NEARBY ${isWifi ? "WIFI" : "BT"} TRANSMISSION FREQUENCIES...`}
+            {isConnecting 
+              ? `AUTHENTICATING ${type.toUpperCase()} HANDSHAKE...`
+              : (isSender 
+                ? `ESTABLISHING SECURE ${isWifi ? "WIFI" : "BT"} FREQUENCY FOR NEARBY RECEIVERS...` 
+                : `SEARCHING FOR NEARBY ${isWifi ? "WIFI" : "BT"} TRANSMISSION FREQUENCIES...`)}
           </p>
+
+          {error && (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="w-full p-3 bg-[#ff2200]/20 border border-[#ff2200]/50 rounded text-[#ff2200] font-mono text-[10px] uppercase tracking-widest text-center"
+            >
+              {error}
+            </motion.div>
+          )}
 
           {isSender ? (
             <div className="flex flex-col items-center gap-6">

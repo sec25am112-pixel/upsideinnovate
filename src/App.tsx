@@ -15,6 +15,9 @@ export default function App() {
   const [showPairing, setShowPairing] = useState(false);
   const [pairingMode, setPairingMode] = useState<"sender" | "receiver" | null>(null);
   const [connectionType, setConnectionType] = useState<"bluetooth" | "wifi">("bluetooth");
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [signalStrength, setSignalStrength] = useState<number>(100);
+  const [isConnecting, setIsConnecting] = useState(false);
 
   const [senderInfo, setSenderInfo] = useState<string | null>(null);
 
@@ -27,16 +30,57 @@ export default function App() {
       processMessage(data.message);
     });
 
+    newSocket.on("disconnect", () => {
+      setRoom(null);
+      setConnectionError("Connection lost. Re-syncing with the void...");
+    });
+
+    // Simulate signal fluctuations
+    const signalInterval = setInterval(() => {
+      if (room) {
+        setSignalStrength(prev => {
+          const change = Math.floor(Math.random() * 21) - 10;
+          const next = Math.max(0, Math.min(100, prev + change));
+          if (next < 20) {
+            setConnectionError("Signal weak. Device may be out of range.");
+          } else if (next === 0) {
+            setRoom(null);
+            setConnectionError("Device out of range. Connection dropped.");
+          } else {
+            setConnectionError(null);
+          }
+          return next;
+        });
+      }
+    }, 5000);
+
     return () => {
       newSocket.close();
+      clearInterval(signalInterval);
     };
-  }, []);
+  }, [room]);
 
-  const handlePair = (code: string) => {
+  const handlePair = async (code: string, type: "bluetooth" | "wifi") => {
     if (socket) {
+      setIsConnecting(true);
+      setConnectionError(null);
+      
+      // Simulate connection handshake
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // 10% chance of pairing failure
+      if (Math.random() < 0.1) {
+        setConnectionError(`Pairing failed. ${type.toUpperCase()} frequency interference detected.`);
+        setIsConnecting(false);
+        return;
+      }
+
       socket.emit("join-room", code);
       setRoom(code);
+      setConnectionType(type);
+      setSignalStrength(100);
       setShowPairing(false);
+      setIsConnecting(false);
     }
   };
 
@@ -94,9 +138,11 @@ export default function App() {
         {showPairing && (
           <PairingOverlay 
             isSender={pairingMode === "sender"} 
-            onPair={handlePair} 
+            onPair={(code) => handlePair(code, connectionType)} 
             onClose={() => setShowPairing(false)} 
             type={connectionType}
+            isConnecting={isConnecting}
+            error={connectionError}
           />
         )}
       </AnimatePresence>
@@ -145,9 +191,30 @@ export default function App() {
         </div>
 
         {room && (
-          <div className="mt-4 text-[#00ff44] font-mono text-[10px] uppercase tracking-[0.3em] animate-pulse">
-            CONNECTED VIA {connectionType.toUpperCase()} • FREQUENCY: {room}
+          <div className="mt-4 flex flex-col items-center gap-2">
+            <div className="text-[#00ff44] font-mono text-[10px] uppercase tracking-[0.3em] animate-pulse">
+              CONNECTED VIA {connectionType.toUpperCase()} • FREQUENCY: {room}
+            </div>
+            <div className="flex items-center gap-1">
+              {[1, 2, 3, 4].map((bar) => (
+                <div 
+                  key={bar}
+                  className={`w-1 h-${bar * 2} rounded-full ${signalStrength >= bar * 25 ? 'bg-[#00ff44]' : 'bg-[#00ff44]/20'}`}
+                />
+              ))}
+              <span className="text-[8px] text-[#00ff44]/60 font-mono ml-2">{signalStrength}% SIGNAL</span>
+            </div>
           </div>
+        )}
+
+        {connectionError && !showPairing && (
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-4 px-4 py-2 bg-[#ff2200]/10 border border-[#ff2200]/30 rounded text-[#ff2200] font-mono text-[10px] uppercase tracking-widest text-center"
+          >
+            {connectionError}
+          </motion.div>
         )}
       </div>
 
