@@ -9,9 +9,11 @@ interface ReceiverPanelProps {
   activeLetter: string | null;
   isTransmitting: boolean;
   decodedText: string;
+  senderId: string | null;
+  room: string | null;
 }
 
-export const ReceiverPanel = ({ activeLetter, isTransmitting, decodedText }: ReceiverPanelProps) => {
+export const ReceiverPanel = ({ activeLetter, isTransmitting, decodedText, senderId, room }: ReceiverPanelProps) => {
   const [shake, setShake] = useState(false);
 
   useEffect(() => {
@@ -34,16 +36,31 @@ export const ReceiverPanel = ({ activeLetter, isTransmitting, decodedText }: Rec
       <AnimatePresence>
         {isTransmitting && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: [0, 1, 0.5, 1] }}
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: [0, 1, 0.5, 1], y: 0 }}
             exit={{ opacity: 0 }}
             transition={{ repeat: Infinity, duration: 1 }}
-            className="absolute top-4 right-4 text-[#ff2200] font-creepster text-xl tracking-widest flicker"
+            className="absolute top-4 right-4 flex flex-col items-end"
           >
-            RECEIVING SIGNAL...
+            <span className="text-[#ff2200] font-creepster text-xl tracking-widest flicker">
+              RECEIVING SIGNAL...
+            </span>
+            {senderId && (
+              <span className="text-[#ff2200]/40 font-mono text-[10px] uppercase tracking-widest">
+                FROM DEVICE: {senderId}
+              </span>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
+
+      {room && !isTransmitting && (
+        <div className="absolute top-4 left-4 flex flex-col items-start opacity-30">
+          <span className="text-[#00ff44] font-mono text-[10px] uppercase tracking-widest">
+            SYNCED TO FREQUENCY: {room}
+          </span>
+        </div>
+      )}
 
       {/* Light Grid */}
       <div className="grid grid-cols-9 gap-2 relative z-10 max-w-4xl">

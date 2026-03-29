@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Bluetooth, BluetoothSearching, BluetoothConnected, X, Wifi, WifiOff } from "lucide-react";
+import { Bluetooth, BluetoothSearching, BluetoothConnected, X, Wifi, WifiOff, QrCode, Camera } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 
 interface PairingOverlayProps {
   onPair: (code: string) => void;
@@ -13,6 +14,7 @@ export const PairingOverlay = ({ onPair, isSender, onClose, type }: PairingOverl
   const [code, setCode] = useState("");
   const [generatedCode, setGeneratedCode] = useState("");
   const [isScanning, setIsScanning] = useState(false);
+  const [showQrScanner, setShowQrScanner] = useState(false);
 
   const isWifi = type === "wifi";
 
@@ -37,6 +39,17 @@ export const PairingOverlay = ({ onPair, isSender, onClose, type }: PairingOverl
     }
   };
 
+  const simulateQrScan = () => {
+    setIsScanning(true);
+    setShowQrScanner(true);
+    setTimeout(() => {
+      // In a real app, this would come from the camera
+      // For this demo, we'll just simulate a successful scan if the user "finds" it
+      setIsScanning(false);
+      setShowQrScanner(false);
+    }, 4000);
+  };
+
   const Icon = isWifi ? Wifi : Bluetooth;
   const SearchingIcon = isWifi ? Wifi : BluetoothSearching;
 
@@ -57,70 +70,110 @@ export const PairingOverlay = ({ onPair, isSender, onClose, type }: PairingOverl
           <X size={24} />
         </button>
 
-        <div className="relative z-10 flex flex-col items-center gap-8">
+        <div className="relative z-10 flex flex-col items-center gap-6">
           <div className="flex items-center gap-4">
             {isScanning ? (
-              <SearchingIcon className="text-[#ff2200] animate-pulse" size={48} />
+              <SearchingIcon className="text-[#ff2200] animate-pulse" size={40} />
             ) : (
-              <Icon className="text-[#ff2200]" size={48} />
+              <Icon className="text-[#ff2200]" size={40} />
             )}
-            <h2 className="text-[#ff2200] font-creepster text-4xl tracking-widest flicker">
+            <h2 className="text-[#ff2200] font-creepster text-3xl tracking-widest flicker">
               {isSender ? (isWifi ? "WIFI HOTSPOT" : "BROADCASTING") : (isWifi ? "WIFI SCAN" : "SCANNING")}
             </h2>
           </div>
 
-          <p className="text-center text-[#fff8e0]/60 font-mono text-sm">
+          <p className="text-center text-[#fff8e0]/60 font-mono text-xs">
             {isSender 
               ? `ESTABLISHING SECURE ${isWifi ? "WIFI" : "BT"} FREQUENCY FOR NEARBY RECEIVERS...` 
               : `SEARCHING FOR NEARBY ${isWifi ? "WIFI" : "BT"} TRANSMISSION FREQUENCIES...`}
           </p>
 
           {isSender ? (
-            <div className="flex flex-col items-center gap-4">
-              <div className="text-6xl font-mono tracking-[0.5em] text-[#ff2200] drop-shadow-[0_0_10px_rgba(255,34,0,0.5)]">
-                {generatedCode}
+            <div className="flex flex-col items-center gap-6">
+              <div className="p-4 bg-white rounded-lg shadow-[0_0_20px_rgba(255,255,255,0.2)]">
+                <QRCodeSVG 
+                  value={generatedCode} 
+                  size={160}
+                  bgColor="#ffffff"
+                  fgColor="#000000"
+                  level="L"
+                  includeMargin={false}
+                />
               </div>
-              <span className="text-xs opacity-40 uppercase tracking-widest">{isWifi ? "WIFI NETWORK ID" : "Frequency ID"}</span>
+              <div className="flex flex-col items-center gap-2">
+                <div className="text-4xl font-mono tracking-[0.5em] text-[#ff2200] drop-shadow-[0_0_10px_rgba(255,34,0,0.5)]">
+                  {generatedCode}
+                </div>
+                <span className="text-[10px] opacity-40 uppercase tracking-widest">Frequency ID / Passcode</span>
+              </div>
             </div>
           ) : (
-            <div className="w-full flex flex-col gap-6">
-              {!isScanning ? (
-                <>
-                  <input
-                    type="text"
-                    maxLength={4}
-                    value={code}
-                    onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-                    placeholder={isWifi ? "ENTER WIFI PASSCODE" : "ENTER FREQUENCY ID"}
-                    className="w-full bg-black/50 border-2 border-[#3a2a1a] p-4 text-center text-4xl font-mono tracking-[0.5em] text-[#ff2200] focus:outline-none focus:border-[#ff2200] transition-colors"
+            <div className="w-full flex flex-col gap-4">
+              {showQrScanner ? (
+                <div className="relative w-full aspect-square bg-black border-2 border-[#ff2200] overflow-hidden flex items-center justify-center">
+                  <div className="absolute inset-0 opacity-20 static-noise" />
+                  <Camera className="text-[#ff2200]/20" size={64} />
+                  <motion.div 
+                    animate={{ top: ["0%", "100%", "0%"] }}
+                    transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
+                    className="absolute left-0 right-0 h-0.5 bg-[#ff2200] shadow-[0_0_10px_#ff2200] z-20"
                   />
-                  <button
-                    onClick={handleConnect}
-                    disabled={code.length !== 4}
-                    className="w-full py-4 bg-[#ff2200] text-black font-creepster text-2xl tracking-widest rounded hover:bg-[#ff4400] transition-colors disabled:opacity-30"
-                  >
-                    CONNECT
-                  </button>
-                </>
-              ) : (
-                <div className="flex flex-col items-center gap-4 py-8">
-                  <div className="w-full h-1 bg-[#1a1208] relative overflow-hidden">
-                    <motion.div
-                      animate={{ left: ["-100%", "100%"] }}
-                      transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
-                      className="absolute top-0 bottom-0 w-1/2 bg-[#ff2200] shadow-[0_0_10px_#ff2200]"
-                    />
+                  <div className="absolute bottom-4 left-0 right-0 text-center text-[10px] text-[#ff2200] font-mono tracking-widest animate-pulse">
+                    POINT AT SENDER QR CODE
                   </div>
-                  <span className="text-xs opacity-40 uppercase tracking-widest">{isWifi ? "Authenticating with the Upside Down..." : "Syncing with the void..."}</span>
                 </div>
+              ) : (
+                <>
+                  {!isScanning ? (
+                    <>
+                      <input
+                        type="text"
+                        maxLength={4}
+                        value={code}
+                        onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+                        placeholder={isWifi ? "ENTER WIFI PASSCODE" : "ENTER FREQUENCY ID"}
+                        className="w-full bg-black/50 border-2 border-[#3a2a1a] p-4 text-center text-4xl font-mono tracking-[0.5em] text-[#ff2200] focus:outline-none focus:border-[#ff2200] transition-colors placeholder:text-xs placeholder:tracking-normal"
+                      />
+                      <div className="grid grid-cols-2 gap-4">
+                        <button
+                          onClick={handleConnect}
+                          disabled={code.length !== 4}
+                          className="py-3 bg-[#ff2200] text-black font-creepster text-xl tracking-widest rounded hover:bg-[#ff4400] transition-colors disabled:opacity-30"
+                        >
+                          CONNECT
+                        </button>
+                        <button
+                          onClick={simulateQrScan}
+                          className="py-3 border-2 border-[#ff2200] text-[#ff2200] font-creepster text-xl tracking-widest rounded hover:bg-[#ff2200]/10 transition-colors flex items-center justify-center gap-2"
+                        >
+                          <QrCode size={20} />
+                          SCAN QR
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex flex-col items-center gap-4 py-8">
+                      <div className="w-full h-1 bg-[#1a1208] relative overflow-hidden">
+                        <motion.div
+                          animate={{ left: ["-100%", "100%"] }}
+                          transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
+                          className="absolute top-0 bottom-0 w-1/2 bg-[#ff2200] shadow-[0_0_10px_#ff2200]"
+                        />
+                      </div>
+                      <span className="text-[10px] opacity-40 uppercase tracking-widest">{isWifi ? "Authenticating with the Upside Down..." : "Syncing with the void..."}</span>
+                    </div>
+                  )}
+                </>
               )}
               
-              <button
-                onClick={handleScan}
-                className="text-[#ff2200]/60 hover:text-[#ff2200] text-xs uppercase tracking-widest transition-colors"
-              >
-                {isScanning ? "Scanning..." : "Refresh Scan"}
-              </button>
+              {!showQrScanner && (
+                <button
+                  onClick={handleScan}
+                  className="text-[#ff2200]/60 hover:text-[#ff2200] text-[10px] uppercase tracking-widest transition-colors text-center"
+                >
+                  {isScanning ? "Scanning..." : "Refresh Scan"}
+                </button>
+              )}
             </div>
           )}
 

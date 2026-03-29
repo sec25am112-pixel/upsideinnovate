@@ -1,19 +1,26 @@
 import React, { useState } from "react";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 
 interface SenderPanelProps {
   onTransmit: (message: string) => void;
   isTransmitting: boolean;
+  room: string | null;
+  connectionType: "bluetooth" | "wifi";
 }
 
-export const SenderPanel = ({ onTransmit, isTransmitting }: SenderPanelProps) => {
+export const SenderPanel = ({ onTransmit, isTransmitting, room, connectionType }: SenderPanelProps) => {
   const [message, setMessage] = useState("");
+  const [lastSent, setLastSent] = useState<string | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (message.trim() && !isTransmitting) {
       onTransmit(message.toUpperCase());
+      setLastSent(message.toUpperCase());
       setMessage("");
+      
+      // Clear last sent after some time
+      setTimeout(() => setLastSent(null), 3000);
     }
   };
 
@@ -27,14 +34,44 @@ export const SenderPanel = ({ onTransmit, isTransmitting }: SenderPanelProps) =>
           SENDER
         </h2>
 
+        {room ? (
+          <div className="flex items-center justify-center gap-2 py-1 px-3 bg-[#00ff44]/10 border border-[#00ff44]/30 rounded-full">
+            <div className="w-1.5 h-1.5 rounded-full bg-[#00ff44] animate-pulse" />
+            <span className="text-[#00ff44] font-mono text-[10px] uppercase tracking-widest">
+              SYNCED VIA {connectionType.toUpperCase()}: {room}
+            </span>
+          </div>
+        ) : (
+          <div className="flex items-center justify-center gap-2 py-1 px-3 bg-[#ff2200]/10 border border-[#ff2200]/30 rounded-full">
+            <div className="w-1.5 h-1.5 rounded-full bg-[#ff2200]" />
+            <span className="text-[#ff2200] font-mono text-[10px] uppercase tracking-widest">
+              NOT CONNECTED
+            </span>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <textarea
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder="TYPE YOUR MESSAGE..."
-            disabled={isTransmitting}
-            className="w-full h-48 bg-[#0a0804] border-2 border-[#3a2a1a] p-4 text-[#fff8e0] font-special text-xl resize-none focus:outline-none focus:border-[#ff2200] transition-colors placeholder:opacity-30 disabled:opacity-50"
-          />
+          <div className="relative">
+            <textarea
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="TYPE YOUR MESSAGE..."
+              disabled={isTransmitting}
+              className="w-full h-48 bg-[#0a0804] border-2 border-[#3a2a1a] p-4 text-[#fff8e0] font-special text-xl resize-none focus:outline-none focus:border-[#ff2200] transition-colors placeholder:opacity-30 disabled:opacity-50"
+            />
+            <AnimatePresence>
+              {lastSent && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 1.1 }}
+                  className="absolute bottom-4 right-4 text-[#00ff44] font-mono text-[10px] uppercase tracking-widest bg-black/80 px-2 py-1 rounded border border-[#00ff44]/30"
+                >
+                  TRANSMITTED: {lastSent.substring(0, 10)}{lastSent.length > 10 ? '...' : ''}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
 
           <motion.button
             whileHover={{ scale: 1.02 }}

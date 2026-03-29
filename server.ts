@@ -26,7 +26,11 @@ async function startServer() {
 
     socket.on("transmit", (data: { room: string; message: string }) => {
       console.log(`Broadcasting to room ${data.room}:`, data.message);
-      io.to(data.room).emit("receive", data.message);
+      io.to(data.room).emit("receive", { 
+        message: data.message, 
+        senderId: socket.id.substring(0, 4),
+        timestamp: Date.now()
+      });
     });
 
     socket.on("disconnect", () => {

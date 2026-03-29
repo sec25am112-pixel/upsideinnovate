@@ -16,12 +16,15 @@ export default function App() {
   const [pairingMode, setPairingMode] = useState<"sender" | "receiver" | null>(null);
   const [connectionType, setConnectionType] = useState<"bluetooth" | "wifi">("bluetooth");
 
+  const [senderInfo, setSenderInfo] = useState<string | null>(null);
+
   useEffect(() => {
     const newSocket = io();
     setSocket(newSocket);
 
-    newSocket.on("receive", (message: string) => {
-      processMessage(message);
+    newSocket.on("receive", (data: { message: string; senderId: string }) => {
+      setSenderInfo(data.senderId);
+      processMessage(data.message);
     });
 
     return () => {
@@ -73,9 +76,9 @@ export default function App() {
   const handleTransmit = (message: string) => {
     if (socket && room) {
       socket.emit("transmit", { room, message });
-    } else if (socket) {
-      // Fallback to global if not paired (optional)
-      socket.emit("transmit", { room: "global", message });
+    } else {
+      // If not paired, we can't send to a specific device
+      console.warn("Cannot transmit: Not paired with a device.");
     }
   };
 
@@ -205,7 +208,12 @@ export default function App() {
         </div>
 
         <div className="h-[600px]">
-          <SenderPanel onTransmit={handleTransmit} isTransmitting={isTransmitting} />
+          <SenderPanel 
+            onTransmit={handleTransmit} 
+            isTransmitting={isTransmitting} 
+            room={room}
+            connectionType={connectionType}
+          />
         </div>
         
         <div className="h-[600px]">
@@ -213,6 +221,8 @@ export default function App() {
             activeLetter={activeLetter} 
             isTransmitting={isTransmitting} 
             decodedText={decodedText} 
+            senderId={senderInfo}
+            room={room}
           />
         </div>
       </main>
