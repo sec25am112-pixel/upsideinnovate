@@ -25,7 +25,9 @@ async function startServer() {
     });
 
     socket.on("transmit", (data: { room: string; message: string }) => {
-      console.log(`Broadcasting to room ${data.room}:`, data.message);
+      console.log(`Broadcasting to room ${data.room} from ${socket.id}:`, data.message);
+      // Use io.to(room).emit to send to EVERYONE in the room, including the sender
+      // This ensures the sender's own receiver panel also reacts for local testing
       io.to(data.room).emit("receive", { 
         message: data.message, 
         senderId: socket.id.substring(0, 4),

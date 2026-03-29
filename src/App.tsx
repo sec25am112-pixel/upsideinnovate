@@ -18,73 +18,13 @@ export default function App() {
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [signalStrength, setSignalStrength] = useState<number>(100);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [socketConnected, setSocketConnected] = useState(false);
+  const [messageQueue, setMessageQueue] = useState<string[]>([]);
+  const [isProcessingQueue, setIsProcessingQueue] = useState(false);
 
   const [senderInfo, setSenderInfo] = useState<string | null>(null);
 
-  useEffect(() => {
-    const newSocket = io();
-    setSocket(newSocket);
-
-    newSocket.on("receive", (data: { message: string; senderId: string }) => {
-      setSenderInfo(data.senderId);
-      processMessage(data.message);
-    });
-
-    newSocket.on("disconnect", () => {
-      setRoom(null);
-      setConnectionError("Connection lost. Re-syncing with the void...");
-    });
-
-    // Simulate signal fluctuations
-    const signalInterval = setInterval(() => {
-      if (room) {
-        setSignalStrength(prev => {
-          const change = Math.floor(Math.random() * 21) - 10;
-          const next = Math.max(0, Math.min(100, prev + change));
-          if (next < 20) {
-            setConnectionError("Signal weak. Device may be out of range.");
-          } else if (next === 0) {
-            setRoom(null);
-            setConnectionError("Device out of range. Connection dropped.");
-          } else {
-            setConnectionError(null);
-          }
-          return next;
-        });
-      }
-    }, 5000);
-
-    return () => {
-      newSocket.close();
-      clearInterval(signalInterval);
-    };
-  }, [room]);
-
-  const handlePair = async (code: string, type: "bluetooth" | "wifi") => {
-    if (socket) {
-      setIsConnecting(true);
-      setConnectionError(null);
-      
-      // Simulate connection handshake
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // 10% chance of pairing failure
-      if (Math.random() < 0.1) {
-        setConnectionError(`Pairing failed. ${type.toUpperCase()} frequency interference detected.`);
-        setIsConnecting(false);
-        return;
-      }
-
-      socket.emit("join-room", code);
-      setRoom(code);
-      setConnectionType(type);
-      setSignalStrength(100);
-      setShowPairing(false);
-      setIsConnecting(false);
-    }
-  };
-
-  const processMessage = async (message: string) => {
+  const processMessage = useCallback(async (message: string) => {
     setIsTransmitting(true);
     setDecodedText("");
     
@@ -115,10 +55,111 @@ export default function App() {
     setActiveLetter(null);
     
     setIsTransmitting(false);
+  }, []);
+
+  useEffect(() => {
+    const newSocket = io();
+    setSocket(newSocket);
+
+    newSocket.on("connect", () => {
+      console.log("Socket connected:", newSocket.id);
+      setSocketConnected(true);
+      if (room) {
+        newSocket.emit("join-room", room);
+      }
+    });
+
+    newSocket.on("receive", (data: { message: string; senderId: string }) => {
+      console.log("Received message:", data);
+      setSenderInfo(data.senderId);
+      setMessageQueue(prev => [...prev, data.message]);
+    });
+
+    newSocket.on("disconnect", () => {
+      console.log("Socket disconnected");
+      setSocketConnected(false);
+      setRoom(null);
+      setConnectionError("Connection lost. Re-syncing with the void...");
+    });
+
+    return () => {
+      newSocket.close();
+    };
+  }, []);
+
+  // Process message queue
+  useEffect(() => {
+    let isMounted = true;
+    if (messageQueue.length > 0 && !isProcessingQueue) {
+      const nextMessage = messageQueue[0];
+      setMessageQueue(prev => prev.slice(1));
+      setIsProcessingQueue(true);
+      processMessage(nextMessage).then(() => {
+        if (isMounted) setIsProcessingQueue(false);
+      });
+    }
+    return () => { isMounted = false; };
+  }, [messageQueue, isProcessingQueue, processMessage]);
+
+  // Handle room joining separately
+  useEffect(() => {
+    if (socket && socketConnected && room) {
+      console.log("Emitting join-room:", room);
+      socket.emit("join-room", room);
+    }
+  }, [socket, socketConnected, room]);
+
+  // Simulate signal fluctuations
+  useEffect(() => {
+    if (!room) return;
+
+    const signalInterval = setInterval(() => {
+      setSignalStrength(prev => {
+        const change = Math.floor(Math.random() * 21) - 10;
+        const next = Math.max(0, Math.min(100, prev + change));
+        
+        if (next === 0) {
+          setRoom(null);
+          setConnectionError("Device out of range. Connection dropped.");
+        } else if (next < 20) {
+          setConnectionError("Signal weak. Device may be out of range.");
+        } else {
+          setConnectionError(null);
+        }
+        return next;
+      });
+    }, 5000);
+
+    return () => clearInterval(signalInterval);
+  }, [room]);
+
+  const handlePair = async (code: string, type: "bluetooth" | "wifi") => {
+    if (socket) {
+      setIsConnecting(true);
+      setConnectionError(null);
+      
+      // Simulate connection handshake
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // 10% chance of pairing failure
+      if (Math.random() < 0.1) {
+        setConnectionError(`Pairing failed. ${type.toUpperCase()} frequency interference detected.`);
+        setIsConnecting(false);
+        return;
+      }
+
+      socket.emit("join-room", code);
+      setRoom(code);
+      setConnectionType(type);
+      setSignalStrength(100);
+      setShowPairing(false);
+      setIsConnecting(false);
+    }
   };
 
   const handleTransmit = (message: string) => {
     if (socket && room) {
+      console.log("Transmitting message to room:", room);
       socket.emit("transmit", { room, message });
     } else {
       // If not paired, we can't send to a specific device
