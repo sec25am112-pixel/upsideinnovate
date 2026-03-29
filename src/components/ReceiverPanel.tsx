@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Bulb } from "./Bulb";
 import { motion, AnimatePresence } from "motion/react";
+import { History, ChevronDown, ChevronUp, Clock } from "lucide-react";
 
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 const COLORS = ["#ff2200", "#ff6600", "#ffcc00", "#00ff44", "#0088ff", "#cc00ff"];
@@ -11,10 +12,12 @@ interface ReceiverPanelProps {
   decodedText: string;
   senderId: string | null;
   room: string | null;
+  history: { message: string; timestamp: number; senderId: string }[];
 }
 
-export const ReceiverPanel = ({ activeLetter, isTransmitting, decodedText, senderId, room }: ReceiverPanelProps) => {
+export const ReceiverPanel = ({ activeLetter, isTransmitting, decodedText, senderId, room, history }: ReceiverPanelProps) => {
   const [shake, setShake] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
 
   useEffect(() => {
     if (activeLetter) {
@@ -81,6 +84,57 @@ export const ReceiverPanel = ({ activeLetter, isTransmitting, decodedText, sende
           {decodedText}
           {isTransmitting && <span className="animate-pulse">_</span>}
         </div>
+      </div>
+
+      {/* Message History Collapsible */}
+      <div className="mt-4 w-full max-w-2xl relative z-10">
+        <button
+          onClick={() => setShowHistory(!showHistory)}
+          className="w-full flex items-center justify-between px-4 py-2 bg-black/20 border border-[#3a2a1a] rounded hover:bg-black/40 transition-colors group"
+        >
+          <div className="flex items-center gap-2 text-[#ff2200]/60 font-mono text-[10px] uppercase tracking-widest">
+            <History size={12} />
+            <span>Intercepted Logs ({history.length})</span>
+          </div>
+          {showHistory ? <ChevronUp size={12} className="text-[#ff2200]/40" /> : <ChevronDown size={12} className="text-[#ff2200]/40" />}
+        </button>
+
+        <AnimatePresence>
+          {showHistory && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="overflow-hidden"
+            >
+              <div className="mt-2 space-y-2 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
+                {history.length === 0 ? (
+                  <div className="text-center py-4 text-[#ff2200]/20 font-mono text-[10px] italic">
+                    NO LOGS RECORDED IN THIS DIMENSION
+                  </div>
+                ) : (
+                  history.map((entry, idx) => (
+                    <div 
+                      key={idx}
+                      className="p-3 bg-black/30 border-l-2 border-[#ff2200]/30 rounded-r flex flex-col gap-1"
+                    >
+                      <div className="flex justify-between items-center text-[8px] font-mono text-[#ff2200]/40 uppercase">
+                        <span className="flex items-center gap-1">
+                          <Clock size={8} />
+                          {new Date(entry.timestamp).toLocaleTimeString()}
+                        </span>
+                        <span>DEVICE: {entry.senderId}</span>
+                      </div>
+                      <div className="text-[#fff8e0] font-mono text-sm tracking-wider">
+                        {entry.message}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Ambient Hum (Visual) */}

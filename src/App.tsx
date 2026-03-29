@@ -23,6 +23,7 @@ export default function App() {
   const [isProcessingQueue, setIsProcessingQueue] = useState(false);
 
   const [senderInfo, setSenderInfo] = useState<string | null>(null);
+  const [history, setHistory] = useState<{ message: string; timestamp: number; senderId: string }[]>([]);
 
   const processMessage = useCallback(async (message: string) => {
     setIsTransmitting(true);
@@ -69,10 +70,15 @@ export default function App() {
       }
     });
 
-    newSocket.on("receive", (data: { message: string; senderId: string }) => {
+    newSocket.on("receive", (data: { message: string; senderId: string; timestamp: number }) => {
       console.log("Received message:", data);
       setSenderInfo(data.senderId);
       setMessageQueue(prev => [...prev, data.message]);
+      setHistory(prev => [{
+        message: data.message,
+        senderId: data.senderId,
+        timestamp: data.timestamp || Date.now()
+      }, ...prev]);
     });
 
     newSocket.on("disconnect", () => {
@@ -331,6 +337,7 @@ export default function App() {
             decodedText={decodedText} 
             senderId={senderInfo}
             room={room}
+            history={history}
           />
         </div>
       </main>
